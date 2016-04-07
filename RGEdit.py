@@ -6,6 +6,7 @@
 ################################################
 
 import zlib, json, base64, struct, copy
+from Tkinter import *
 
 class _Hierarchy(object):
   conditions = {
@@ -1568,5 +1569,28 @@ class EditAssist(cmd.Cmd):
         self.do_edit('')
     except ValueError: print 'invalid parameter(s) used'
         
-ea = EditAssist()
-ea.cmdloop()
+##ea = EditAssist()
+##ea.cmdloop()
+
+class App:
+
+    def __init__(self, master):
+
+        frame = Frame(master)
+        frame.pack()
+
+        self.button = Button(
+            frame, text="QUIT", fg="red", command=frame.quit
+            )
+        self.button.pack(side=LEFT)
+
+        self.hi_there = Button(frame, text="Hello", command=self.say_hi)
+        self.hi_there.pack(side=LEFT)
+
+    def say_hi(self):
+        print "hi there, everyone!"
+
+root = Tk()
+
+app = App(root)
+root.mainloop()
