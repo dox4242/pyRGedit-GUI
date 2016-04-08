@@ -1,10 +1,3 @@
-################################################
-## USAGE INSTRUCTIONS:                        ##
-## DO NOT ENTER YOUR SAVE DATA IN THIS WINDOW ##
-## PRESS THE RUN BUTTON ABOVE                 ##
-## ENTER COMMANDS IN THE WINDOW TO THE RIGHT  ##
-################################################
-
 import zlib, json, base64, struct, copy
 from Tkinter import *
 
@@ -924,12 +917,6 @@ class EditAssist(cmd.Cmd):
     if (x == None): return
     self.save['lastsave'] -= x
 
-  def do_scry(self, x):
-    '''maxes production and mana scry timers (and heart, for Valentine event)'''
-    for k,v in {'oTimer': 14400, 'oTimer2': 600, 'oTimer3': 14400}.items():
-      self.save[k] = v
-    print 'All scry timers set to max.'
-
   def do_edit(self, x):
     '''Edits every available value in the save data.\nType "edit" to see a list of all subcommands.\nType "edit help" to see a list of all subcommands with their options.\n\nWARNING: This command simply assigns values to different structures in the save file. No effort has been made to protect against otherwise impossible data configurations. Always keep a backup copy.'''
     param = x.split()
@@ -971,7 +958,6 @@ class EditAssist(cmd.Cmd):
                 'bline':       'use "edit bline <none/fairy/elf/angel/goblin/undead/demon/titan/druid/faceless/dwarf/drow>" to set bloodline upgrade (setting bloodline to none will remove bloodstream as well)',
                 'research':    'use "edit research <none/short name>" to un-buy all research, or toggle research upgrades on/off (short names: d55 or a25b, etc.)',
                 ## subcmds with len(param) == 3
-                'scry':        'use "edit scry max" to maximize all the scry timers\nuse "edit scry <all/prod/mana/event> <x>" to set scry timers, in seconds',
                 'build':       'use "edit build <all/tier of building> <x>" to set number of buildings',
                 'miracle':     'use "edit miracle time <0-120>" to set remaining miracle time, in seconds\nuse "edit miracle tier <1-11>" to set which building miracle is targeting',
                 'snowball':    'use "edit snowball <size/scry> <x>" to set snowball size and scry-uses values',
@@ -1451,32 +1437,6 @@ class EditAssist(cmd.Cmd):
             print 'reset', param[2], 'ruby bonus to', self.save['statsRei'][bonusSwitch[param[2]]], 'and refunded', rubyRefund, 'rubies'
           else: raise ValueError
         else: raise ValueError
-      elif param[0] == 'scry':
-        if len(param) == 1: print edithelp[param[0]]
-        elif len(param) == 2:
-          if param[1] == 'max':
-            self.save['oTimer'] = 14400
-            self.save['oTimer2'] = 600
-            self.save['oTimer3'] = 14400
-            print 'set all scry timers to max'
-          else: raise ValueError
-        elif len(param) >= 3:
-          if param[1] == 'all':
-            self.save['oTimer'] = int(param[2])
-            self.save['oTimer2'] = int(param[2])
-            self.save['oTimer3'] = int(param[2])
-            print 'set all scry timers to', self.save['oTimer'], 'seconds'
-          elif param[1] == 'prod':
-            self.save['oTimer'] = int(param[2])
-            print 'set production scry timer to', self.save['oTimer'], 'seconds'
-          elif param[1] == 'mana':
-            self.save['oTimer2'] = int(param[2])
-            print 'set mana scry timer to', self.save['oTimer2'], 'seconds'
-          elif param[1] == 'event':
-            self.save['oTimer3'] = int(param[2])
-            print 'set event scry timer to', self.save['oTimer3'], 'seconds'
-          else: raise ValueError
-        else: raise ValueError
       elif param[0] == 'season':
         if len(param) == 1:
           print edithelp[param[0]]
@@ -1569,28 +1529,39 @@ class EditAssist(cmd.Cmd):
         self.do_edit('')
     except ValueError: print 'invalid parameter(s) used'
         
-##ea = EditAssist()
-##ea.cmdloop()
-
 class App:
+  def __init__(self, master):
+    self.master = master
+    frame = Frame(master)
+    frame.pack()
+    self.decodeButton = Button(frame, text='Decode', command=self.decode)
+    self.decodeButton.grid(row=0, column=0)
+    self.encodeButton = Button(frame, text='Encode', command=self.encode)
+    self.encodeButton.grid(row=0, column=1)
+    self.scryButton = Button(frame, text='Scry', command=self.scry)
+    self.scryButton.grid(row=1, column=0)
+    self.statusText = StringVar()
+    self.statusText.set('                                                      ')
+    self.statusLabel = Label(frame, textvariable=self.statusText, bd=1, relief=SUNKEN)
+    self.statusLabel.grid(row=2, columnspan=2)
 
-    def __init__(self, master):
+  def decode(self):
+    try: self.save, self.valid = decode(root.clipboard_get())
+    except: self.save, self.valid = None, False
+    if (self.valid): self.statusText.set('Save decoded')
+    else: self.statusText.set('Invalid save')
 
-        frame = Frame(master)
-        frame.pack()
+  def encode(self):
+    root.clipboard_clear()
+    root.clipboard_append(encode(self.save))
+    self.statusText.set('Save copied')
 
-        self.button = Button(
-            frame, text="QUIT", fg="red", command=frame.quit
-            )
-        self.button.pack(side=LEFT)
-
-        self.hi_there = Button(frame, text="Hello", command=self.say_hi)
-        self.hi_there.pack(side=LEFT)
-
-    def say_hi(self):
-        print "hi there, everyone!"
+  def scry(self):
+    self.save['oTimer'] = 14400
+    self.save['oTimer2'] = 600
+    self.save['oTimer3'] = 14400
+    self.statusText.set('Scry timers set')
 
 root = Tk()
-
 app = App(root)
 root.mainloop()
