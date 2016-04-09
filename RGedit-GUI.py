@@ -924,9 +924,7 @@ class EditAssist(cmd.Cmd):
 
     edithelp = {'_helpheader': 'WARNING: This command simply assigns values to different structures in the save file. No effort has been made to protect against otherwise impossible data configurations. Always keep a backup copy.\n',
                 ## subcmds with len(param) == 2
-                'reinc':       'use "edit reinc <x>" to set reincarnation count',
                 'gems':        'use "edit gems <x>" to set gem count (\'e\' notation is allowed; eg. 1e21)',
-                'rubies':      'use "edit rubies <x>" to increase rubies (\'e\' notation is allowed; eg. 1e21)\nuse "edit rubies reset <all/asst/regen/mana/gem/fc>" to reset ruby bonus and refund rubies',
                 'art':         'use "edit art seed" to set artifact RNG seed to an extremely low value, virtually ensuring an artifact will be awarded next excavation',
                 'eggrng':      'use "edit eggrng <good/x>" to set easter egg RNG seed so you will get the 8 unique eggs in less than 400 egg pick-ups, or use any integer to set it specifically',
                 'excav':       'use "edit excav <x>" to set excavations',
@@ -1071,11 +1069,6 @@ class EditAssist(cmd.Cmd):
         elif param[1] == 'seed':
           self.save['artifactRngState'] = 1407677000
           print 'set artifact RNG state to', self.save['artifactRngState']
-      elif param[0] == 'ascend':
-        if len(param) == 1: print edithelp[param[0]]
-        else:
-          self.save['ascension'] = int(param[1])
-          print 'set ascension count to', self.save['ascension']
       elif param[0] == 'bline':
         if len(param) == 1: print edithelp[param[0]]
         elif param[1] in factionSwitch3:
@@ -1384,11 +1377,6 @@ class EditAssist(cmd.Cmd):
             print 'set', param[1], 'REs to', self.save['royalExchangeFaction'][factionSwitch2[param[1]]]
           else: raise ValueError
         else: raise ValueError
-      elif param[0] == 'reinc':
-        if len(param) == 1: print edithelp[param[0]]
-        else:
-          self.save['rei'] = int(param[1])
-          print 'set reincarnation count to', self.save['rei']
       elif param[0] == 'research':
         if len(param) == 1: print edithelp[param[0]]
         elif param[1] in researchSwitch:
@@ -1410,32 +1398,6 @@ class EditAssist(cmd.Cmd):
             if param[1] != 'none':
               self.save['upgrade'].append({'_id':researchSwitch[param[1]][0], 'u1':True, 's':0})
               print 'unlocked research', param[1], 'and set to',True
-        else: raise ValueError
-      elif param[0] == 'rubies':
-        if len(param) == 1: print edithelp[param[0]]
-        elif len(param) == 2:
-          if 'e' in param[1]:
-            param[1] = param[1].split('e')
-            if len(param[1]) >= 2: param[1] = int(param[1][0])*10**int(param[1][1])
-          self.save['rubies'] += int(param[1])
-          self.save['stats'][102] += int(param[1])
-          print 'increased rubies to', self.save['rubies']
-        elif (len(param) >= 3) and (param[1] == 'reset'):
-          if param[2] == 'all':
-            rubyRefund = 0
-            for i in range(105,110):
-              bonusLvl = self.save['stats'][i] + self.save['statsReset'][i] + self.save['statsRei'][i]
-              rubyRefund += bonusLvl * (bonusLvl + 1) / 2
-            self.save['rubies'] += rubyRefund
-            self.save['statsRei'][105] = self.save['statsReset'][105] = self.save['stats'][105] = self.save['statsRei'][106] = self.save['statsReset'][106] = self.save['stats'][106] = self.save['statsRei'][107] = self.save['statsReset'][107] = self.save['stats'][107] = self.save['statsRei'][108] = self.save['statsReset'][108] = self.save['stats'][108] = self.save['statsRei'][109] = self.save['statsReset'][109] = self.save['stats'][109] = 0
-            print 'reset all ruby bonuses to', self.save['statsRei'][105], 'and refunded', rubyRefund, 'rubies'
-          elif param[2] in rubySwitch:
-            bonusLvl = self.save['stats'][rubySwitch[param[2]]] + self.save['statsReset'][rubySwitch[param[2]]] + self.save['statsRei'][rubySwitch[param[2]]]
-            rubyRefund = bonusLvl * (bonusLvl + 1) / 2
-            self.save['rubies'] += rubyRefund
-            self.save['statsRei'][bonusSwitch[param[2]]] = self.save['statsReset'][bonusSwitch[param[2]]] = self.save['stats'][bonusSwitch[param[2]]] = 0
-            print 'reset', param[2], 'ruby bonus to', self.save['statsRei'][bonusSwitch[param[2]]], 'and refunded', rubyRefund, 'rubies'
-          else: raise ValueError
         else: raise ValueError
       elif param[0] == 'season':
         if len(param) == 1:
@@ -1540,10 +1502,17 @@ class App:
     self.encodeButton.grid(row=0, column=1)
     self.scryButton = Button(frame, text='Scry', command=self.scry)
     self.scryButton.grid(row=1, column=0)
+    self.rubiesButton = Button(frame, text='Rubies', command=self.rubies)
+    self.rubiesButton.grid(row=1, column=1)
+    self.reincButton = Button(frame, text='Reinc', command=self.reinc)
+    self.reincButton.grid(row=2, column=0)
+    self.ascendButton = Button(frame, text='Ascend', command=self.ascend)
+    self.ascendButton.grid(row=2, column=1)
     self.statusText = StringVar()
     self.statusText.set('                                                      ')
     self.statusLabel = Label(frame, textvariable=self.statusText, bd=1, relief=SUNKEN)
-    self.statusLabel.grid(row=2, columnspan=2)
+    self.statusLabel.grid(row=3, columnspan=2)
+    self.save, self.valid = None, False
 
   def decode(self):
     try: self.save, self.valid = decode(root.clipboard_get())
@@ -1552,15 +1521,132 @@ class App:
     else: self.statusText.set('Invalid save')
 
   def encode(self):
+    if not self.valid:
+      self.statusText.set('Invalid save')
+      return
     root.clipboard_clear()
     root.clipboard_append(encode(self.save))
     self.statusText.set('Save copied')
 
   def scry(self):
+    if not self.valid:
+      self.statusText.set('Invalid save')
+      return
     self.save['oTimer'] = 14400
     self.save['oTimer2'] = 600
     self.save['oTimer3'] = 14400
-    self.statusText.set('Scry timers set')
+    self.statusText.set('Set scry timers')
+
+  def rubies(self):
+    if not self.valid:
+      self.statusText.set('Invalid save')
+      return
+    self.inputbox = Toplevel()
+    self.inputbox.title('Edit Rubies')
+    self.b1 = Button(self.inputbox, text='Add', command=self.addRubies)
+    self.b1.grid(row=0, column=0)
+    self.e = Entry(self.inputbox)
+    self.e.grid(row=0, column=1)
+    self.e.focus()
+    self.b2 = Button(self.inputbox, text='Refund', command=self.refundRubies)
+    self.b2.grid(row=1, column=0)
+    self.asstRefund = self.regenRefund = self.manaRefund = self.gemRefund = self.reRefund = 0
+    self.bonusLevels = self.save['stats'][105] + self.save['statsReset'][105] + self.save['statsRei'][105]
+    self.asstRefund = self.bonusLevels * (self.bonusLevels + 1) / 2
+    self.bonusLevels = self.save['stats'][106] + self.save['statsReset'][106] + self.save['statsRei'][106]
+    self.regenRefund = self.bonusLevels * (self.bonusLevels + 1) / 2
+    self.bonusLevels = self.save['stats'][107] + self.save['statsReset'][107] + self.save['statsRei'][107]
+    self.manaRefund = self.bonusLevels * (self.bonusLevels + 1) / 2
+    self.bonusLevels = self.save['stats'][108] + self.save['statsReset'][108] + self.save['statsRei'][108]
+    self.gemRefund = self.bonusLevels * (self.bonusLevels + 1) / 2
+    self.bonusLevels = self.save['stats'][109] + self.save['statsReset'][109] + self.save['statsRei'][109]
+    self.reRefund = self.bonusLevels * (self.bonusLevels + 1) / 2
+    self.allRefund = self.asstRefund + self.regenRefund + self.manaRefund + self.gemRefund + self.reRefund
+    self.listbox = Listbox(self.inputbox, selectmode=MULTIPLE)
+    self.listbox.insert(END, 'All ('+str(self.allRefund)+' rubies)')
+    self.listbox.insert(END, 'Assistants ('+str(self.asstRefund)+' rubies)')
+    self.listbox.insert(END, 'Mana Regen ('+str(self.regenRefund)+' rubies)')
+    self.listbox.insert(END, 'Max Mana ('+str(self.manaRefund)+' rubies)')
+    self.listbox.insert(END, 'Gem Bonus ('+str(self.gemRefund)+' rubies)')
+    self.listbox.insert(END, 'RE Bonus ('+str(self.reRefund)+' rubies)')
+    self.listbox.grid(row=1, column=1)
+
+  def addRubies(self):
+    amount = self.e.get()
+    try:
+      if 'e' in amount:
+        amount = amount.split('e')
+        if len(amount) >= 2: amount = int(amount[0])*10**int(amount[1])
+      self.save['rubies'] += int(amount)
+      self.save['stats'][102] += int(amount)
+      self.statusText.set('Set rubies')
+      self.inputbox.destroy()
+    except ValueError:
+      self.statusText.set('Invalid input')
+      self.inputbox.destroy()
+
+  def refundRubies(self):
+    print self.listbox.curselection()
+    for s in self.listbox.curselection():
+      if s == 0:
+        self.save['rubies'] += self.allRefund
+        self.save['statsRei'][105] = self.save['statsReset'][105] = self.save['stats'][105] = self.save['statsRei'][106] = self.save['statsReset'][106] = self.save['stats'][106] = self.save['statsRei'][107] = self.save['statsReset'][107] = self.save['stats'][107] = self.save['statsRei'][108] = self.save['statsReset'][108] = self.save['stats'][108] = self.save['statsRei'][109] = self.save['statsReset'][109] = self.save['stats'][109] = 0
+        self.statusText.set('Refunded rubies')
+        self.inputbox.destroy()
+        return
+      else:
+        self.save['rubies'] += [None, self.asstRefund, self.regenRefund, self.manaRefund, self.gemRefund, self.reRefund][s]
+        self.save['statsRei'][104+s] = self.save['statsReset'][104+s] = self.save['stats'][104+s] = 0
+        self.statusText.set('Refunded rubies')
+        self.inputbox.destroy()
+
+  def reinc(self):
+    if not self.valid:
+      self.statusText.set('Invalid save')
+      return
+    self.inputbox = Toplevel()
+    self.l = Label(self.inputbox, text='Enter reincarnation #')
+    self.l.grid(columnspan=2)
+    self.e = Entry(self.inputbox)
+    self.e.grid(row=1, columnspan=2)
+    self.e.focus()
+    self.b1 = Button(self.inputbox, text='Save', command=self.saveReinc)
+    self.b1.grid(row=2)
+    self.b2 = Button(self.inputbox, text='Cancel', command=self.inputbox.destroy)
+    self.b2.grid(row=2, column=1)
+
+  def saveReinc(self):
+    try:
+      self.save['rei'] = int(self.e.get())
+      self.statusText.set('Set Reinc #')
+      self.inputbox.destroy()
+    except ValueError:
+      self.statusText.set('Invalid input')
+      self.inputbox.destroy()
+      
+  def ascend(self):
+    if not self.valid:
+      self.statusText.set('Invalid save')
+      return
+    self.inputbox = Toplevel()
+    self.l = Label(self.inputbox, text='Enter ascension #')
+    self.l.grid(columnspan=2)
+    self.e = Entry(self.inputbox)
+    self.e.grid(row=1, columnspan=2)
+    self.e.focus()
+    self.b1 = Button(self.inputbox, text='Save', command=self.saveAscend)
+    self.b1.grid(row=2)
+    self.b2 = Button(self.inputbox, text='Cancel', command=self.inputbox.destroy)
+    self.b2.grid(row=2, column=1)    
+
+  def saveAscend(self):
+    try:
+      self.save['ascension'] = int(self.e.get())
+      self.statusText.set('Set Ascension #')
+      self.inputbox.destroy()
+    except ValueError:
+      self.statusText.set('Invalid input')
+      self.inputbox.destroy()
 
 root = Tk()
 app = App(root)
