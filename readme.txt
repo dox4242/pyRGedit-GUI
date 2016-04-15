@@ -3,6 +3,9 @@
 ## Python source file included.
 ## For questions or suggestions, email to dox4242,gmail@com (bad format to confuse bots).
 
+## Version 0.3 (15-April-2016):
+## Added tooltips, Exit, Offline, Buildings buttons
+
 ## Version 0.2b (12-April-2016):
 ## Added readme and License to zip file
 
