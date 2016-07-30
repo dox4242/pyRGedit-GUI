@@ -5,6 +5,9 @@ Python source files included.
 
 For questions or suggestions, email to dox4242,gmail@com (bad format to confuse bots).
 
+Version 0.5 (29-July-2016):
+Updated for RG v2.0.12.0
+
 Version 0.4 (30-June-2016):
 Updated for RG v2.0.9.3
 
